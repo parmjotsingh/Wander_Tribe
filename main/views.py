@@ -38,7 +38,7 @@ def index(request):
             newsLetter.save()
             messages.success(request, 'You are successfully registered with us!')
             return HttpResponseRedirect(reverse("main:index"))
-    print(f"Hi,{request.method}")
+    print(f"Hi,{request.method}\n", Hike.objects.all().order_by('-id')[:5])
     return render(request, 'index.html', {"treks": Hike.objects.all().order_by('-id')[:5]})
 
 @login_required(login_url='main:login')
@@ -146,7 +146,12 @@ class Signup(View):
         if User.objects.filter(username=request.POST.get("email")).exists():
             messages.error(request, 'Sorry, email id already exists. Try reseting password!')            
             return redirect(request.META.get('HTTP_REFERER', '/'))
-        user = Customer()
+
+        user_type_selection=request.POST.get('usertype')
+        if user_type_selection=='Hiker':
+            user = Customer()
+        elif user_type_selection=='Guide':
+            user = Guide()
         user.username = request.POST.get("email")
         user.email = request.POST.get("email")
         user.phone = request.POST.get("phone")
