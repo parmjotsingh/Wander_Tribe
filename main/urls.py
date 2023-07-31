@@ -1,7 +1,9 @@
+from django.contrib.auth import admin
 from django.urls import path
 from . import views
 from django.conf import settings
 from django.conf.urls.static import static
+from django.contrib import admin
 
 app_name = 'main'
 urlpatterns = [
@@ -20,8 +22,9 @@ urlpatterns = [
     path('profile', views.profile, name='profile'),
     path('contact', views.contact, name='contact'),
     path('cancel/<int:id>', views.cancelBooking, name='cancel'),
+    # path('guidepage/', admin.site.urls),
     # path('email', views.email, name='email'),
-]
+]+ static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL,

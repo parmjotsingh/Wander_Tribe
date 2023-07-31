@@ -11,13 +11,12 @@ from django.views.decorators.debug import sensitive_variables
 from django.conf import settings
 from django.db.models import F
 from django.contrib import messages
-from django.contrib.auth.models import User
+from django.contrib.auth.models import User, Group
 from .helper import send_forget_password_mail, email
 from moneyed import Money
 from google_currency import convert
 import json
 import uuid
-
 
 
 # Create your views here.
@@ -41,11 +40,12 @@ def index(request):
     print(f"Hi,{request.method}\n", Hike.objects.all().order_by('-id')[:5])
     return render(request, 'index.html', {"treks": Hike.objects.all().order_by('-id')[:5]})
 
+
 @login_required(login_url='main:login')
 def singleTrek(request, id):
     trek = get_object_or_404(Hike, pk=id)
     user = get_object_or_404(Guide, pk=trek.user_id)
-    if EnrolledHikers.objects.filter(user=request.user.pk, hike = id):
+    if EnrolledHikers.objects.filter(user=request.user.pk, hike=id):
         trek.booked = True
     print("User id", user)
     if trek is None or user is None:
@@ -60,37 +60,39 @@ def treks(request):
         search_text = request.GET.get('search')
         # print(search_text)
         if search_text is not None:
-            occupied_treks = Hike.objects.filter(available_capcity__gte=F('group_size')).exclude(pk__in=enrolledHikers).filter(mountain__contains=search_text)
+            occupied_treks = Hike.objects.filter(available_capcity__gte=F('group_size')).exclude(
+                pk__in=enrolledHikers).filter(mountain__contains=search_text)
 
-            available_treks = Hike.objects.filter(group_size__gt=F('available_capcity')).exclude(pk__in=enrolledHikers).filter(mountain__contains=search_text)
+            available_treks = Hike.objects.filter(group_size__gt=F('available_capcity')).exclude(
+                pk__in=enrolledHikers).filter(mountain__contains=search_text)
 
         else:
             # enrolledHikers brings list of treks which user has enrolled into
 
             # occupied_treks searches for all the treks which are already full and removes treks which user has already enrolled to
-            occupied_treks = Hike.objects.filter(available_capcity__gte = F('group_size')).exclude(pk__in=enrolledHikers)
+            occupied_treks = Hike.objects.filter(available_capcity__gte=F('group_size')).exclude(pk__in=enrolledHikers)
 
             # available_treks first filters which treks are available and excludes all the treks which user is already a part of
-            available_treks = Hike.objects.filter(group_size__gt = F('available_capcity')).exclude(pk__in=enrolledHikers).order_by('cost')
+            available_treks = Hike.objects.filter(group_size__gt=F('available_capcity')).exclude(
+                pk__in=enrolledHikers).order_by('cost')
     # print(available_treks)
     return render(request, 'treks.html', {"treks": available_treks, "occupied_treks": occupied_treks})
 
 
 @login_required(login_url='main:login')
 def myBooking(request):
-
     # enrolledHikers brings list of treks which user has enrolled into
-    enrolledHikers = EnrolledHikers.objects.filter(user = request.user.pk).values_list('hike')
+    enrolledHikers = EnrolledHikers.objects.filter(user=request.user.pk).values_list('hike')
     if request.method == "GET":
         search_text = request.GET.get('search')
         # print(search_text)
         if search_text is not None:
             booked_treks = Hike.objects.filter(pk__in=enrolledHikers).filter(mountain__contains=search_text)
         else:
-    # booked_treks searches all the treks which logged in user is enrolled to
-            booked_treks = Hike.objects.filter(pk__in = enrolledHikers)
+            # booked_treks searches all the treks which logged in user is enrolled to
+            booked_treks = Hike.objects.filter(pk__in=enrolledHikers)
 
-    return render(request, 'booking.html' ,{"booked_treks": booked_treks})
+    return render(request, 'booking.html', {"booked_treks": booked_treks})
 
 
 @login_required(login_url='main:login')
@@ -115,23 +117,28 @@ def booking(request, id):
 
 class Login(View):
     form = UserLoginForm
+
     def get(self, request, *args, **kwargs):
         if not request.user.is_authenticated:
             return render(request, 'login.html', {"form": self.form})
         else:
             return redirect('/')
-    
+
     def post(self, request, *args, **kwargs):
         email = request.POST['email']
         password = request.POST['password']
         user = authenticate(username=email, password=password)
         if user is not None:
             login(request, user)
-            # Redirect to a success page.
-            return redirect(request.META.get('HTTP_REFERER', '/'))
+            if user.groups.filter(name="Guide").exists():
+                admin_url = reverse('admin:index')
+                return redirect(admin_url)
+            else:
+                # Redirect to a success page.
+                return redirect(request.META.get('HTTP_REFERER', '/'))
         else:
             # Return an 'invalid login' error message.
-            return render(request, 'login.html', {"form": self.form, "error" : 'Invalid username or password.'})
+            return render(request, 'login.html', {"form": self.form, "error": 'Invalid username or password.'})
 
 
 class Signup(View):
@@ -141,17 +148,21 @@ class Signup(View):
             return render(request, 'registration.html')
         else:
             return redirect(request.META.get('HTTP_REFERER', '/'))
-    
+
     def post(self, request, *args, **kwargs):
         if User.objects.filter(username=request.POST.get("email")).exists():
-            messages.error(request, 'Sorry, email id already exists. Try reseting password!')            
+            messages.error(request, 'Sorry, email id already exists. Try reseting password!')
             return redirect(request.META.get('HTTP_REFERER', '/'))
 
-        user_type_selection=request.POST.get('usertype')
-        if user_type_selection=='Hiker':
+        user_type_selection = request.POST.get('usertype')
+        if user_type_selection == 'Hiker':
+            group = Group.objects.get(name="Hiker")
             user = Customer()
-        elif user_type_selection=='Guide':
+        elif user_type_selection == 'Guide':
+            group = Group.objects.get(name="Guide")
             user = Guide()
+            user.image = 'default.jpg'
+            user.is_staff = True
         user.username = request.POST.get("email")
         user.email = request.POST.get("email")
         user.phone = request.POST.get("phone")
@@ -160,69 +171,77 @@ class Signup(View):
         user.last_name = request.POST.get("lname")
         user.password = make_password(request.POST.get("password"))
         user.save()
-        return redirect('/', {"success": "User details stored successfully"})
+        user.groups.add(group)
+        user.save()
+
+        if user.groups.filter(name="Guide").exists():
+            admin_url = reverse('admin:index')
+            return redirect(admin_url)
+        else:
+            # Redirect to a success page.
+            return redirect('/', {"success": "User details stored successfully"})
 
 
-def ChangePassword(request , token):
+def ChangePassword(request, token):
     context = {}
     try:
-        cust_obj = Customer.objects.filter(forget_password_token = token).first()
-        print("Customer Object in change password",cust_obj)
-        context = {'user_id' : cust_obj.id}
+        cust_obj = Customer.objects.filter(forget_password_token=token).first()
+        print("Customer Object in change password", cust_obj)
+        context = {'user_id': cust_obj.id}
 
         if request.method == 'POST':
             new_password = request.POST.get('new_password')
             confirm_password = request.POST.get('reconfirm_password')
             user_id = request.POST.get('user_id')
-            print("User_id",user_id)
+            print("User_id", user_id)
 
-            if user_id is  None:
+            if user_id is None:
                 messages.success(request, 'No user id found.')
                 return redirect(f'/change-password/{token}/')
 
-
-            if  new_password != confirm_password:
+            if new_password != confirm_password:
                 messages.success(request, 'both should  be equal.')
                 return redirect(f'/change-password/{token}/')
 
-            user_obj = Customer.objects.get(id = user_id)
-            print("user_obj in cp",user_obj)
+            user_obj = Customer.objects.get(id=user_id)
+            print("user_obj in cp", user_obj)
             user_obj.set_password(new_password)
             user_obj.save()
             return redirect('/login')
 
     except Exception as e:
         print(e)
-    return render(request , 'change-password.html' , context)
+    return render(request, 'change-password.html', context)
 
 
 def ForgetPassword(request):
     try:
         if request.method == 'POST':
-            email= request.POST.get('email')
-            print("Email",email )
-            print("Customer",Customer.objects.filter(email=email).first())
+            email = request.POST.get('email')
+            print("Email", email)
+            print("Customer", Customer.objects.filter(email=email).first())
             if Customer.objects.filter(email=email).first() == None:
                 messages.success(request, 'No user found with this email.')
                 return redirect('/forget-password')
 
             # user_obj = User.objects.get(email = email)
             token = str(uuid.uuid4())
-            cust_obj= Customer.objects.get(email = email)
+            cust_obj = Customer.objects.get(email=email)
             cust_obj.forget_password_token = token
             cust_obj.save()
-            print("Customer object",cust_obj)
+            print("Customer object", cust_obj)
             reset_url = request.build_absolute_uri('/change-password/')
-            print("Only reset url ",reset_url)
-            print(" reset url+token ",reset_url+token+"/")
-            reset_url+=token+"/"
-            send_forget_password_mail(cust_obj.email , reset_url)
+            print("Only reset url ", reset_url)
+            print(" reset url+token ", reset_url + token + "/")
+            reset_url += token + "/"
+            send_forget_password_mail(cust_obj.email, reset_url)
             messages.success(request, 'An email is sent.')
             return redirect('/forget-password')
 
     except Exception as e:
         print(e)
-    return render(request , 'forget-password.html')
+    return render(request, 'forget-password.html')
+
 
 def teams(request):
     return render(request, "team.html", {"team": Guide.objects.all()})
@@ -263,7 +282,8 @@ def payment(request, id):
                             {"error": "Sorry, you're late group capacity is full"})
         form = PaymentForm
         trek = get_object_or_404(Hike, pk=id)
-        return render(request, "payment.html", {"trek_id": id, 'form': form, 'trek_cost': trek.cost, 'convert': convert})
+        return render(request, "payment.html",
+                      {"trek_id": id, 'form': form, 'trek_cost': trek.cost, 'convert': convert})
 
 
 @login_required(login_url='main:login')
@@ -277,7 +297,8 @@ def profile(request):
         user.first_name = request.POST.get("fname")
         user.last_name = request.POST.get("lname")
         user.save()
-        return render(request, "profile.html", {"profile": user, "success":"Your details are updated successfully"})
+        return render(request, "profile.html", {"profile": user, "success": "Your details are updated successfully"})
+
 
 def contact(request):
     list(messages.get_messages(request))
@@ -291,19 +312,20 @@ def contact(request):
         return HttpResponseRedirect(reverse('main:contact'))
     return render(request, "contact.html")
 
+
 @login_required(login_url='main:login')
 def cancelBooking(request, id):
     try:
-        hike = Hike.objects.get(pk = id)
+        hike = Hike.objects.get(pk=id)
     except Hike.DoesNotExist:
         messages.error(request, 'Sorry, no such trek Exists!')
         return redirect(request.META.get('HTTP_REFERER', '/'))
     try:
-        enrolledHikers = EnrolledHikers.objects.get(user=request.user.pk, hike = id)
+        enrolledHikers = EnrolledHikers.objects.get(user=request.user.pk, hike=id)
     except:
         messages.error(request, 'Sorry, you are not enrolled to this hike!')
         return redirect(request.META.get('HTTP_REFERER', '/'))
-    email(request, enrolledHikers.pk, True)    
+    email(request, enrolledHikers.pk, True)
     enrolledHikers.delete()
     hike.available_capcity -= 1
     hike.save()
