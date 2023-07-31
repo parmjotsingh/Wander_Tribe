@@ -15,7 +15,7 @@ def send_forget_password_mail(email , reset_url ):
     return True
 
 def email(request, id, cancellation):
-    return
+
     hike = EnrolledHikers.objects.get(pk=id)
     hike.cancellation = cancellation
     tx = float("{:.2f}".format(hike.hike.cost * .13))

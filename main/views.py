@@ -161,7 +161,7 @@ class Signup(View):
         elif user_type_selection == 'Guide':
             group = Group.objects.get(name="Guide")
             user = Guide()
-            user.image = 'default.jpg'
+            user.image = 'default.png'
             user.is_staff = True
         user.username = request.POST.get("email")
         user.email = request.POST.get("email")
