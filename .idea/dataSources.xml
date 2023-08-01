@@ -10,5 +10,12 @@
       <jdbc-url>jdbc:sqlite:E:\U WINDSOR\3rd Semester(May - Aug 2023)\3. Internship Project\TrekkingProjectMain\db.sqlite3</jdbc-url>
       <working-dir>$ProjectFileDir$</working-dir>
     </data-source>
+    <data-source source="LOCAL" name="db" uuid="aec34450-3a89-4228-93e8-ce1f4ade88f4">
+      <driver-ref>sqlite.xerial</driver-ref>
+      <synchronize>true</synchronize>
+      <jdbc-driver>org.sqlite.JDBC</jdbc-driver>
+      <jdbc-url>jdbc:sqlite:C:\Work\3 term project management\Wander_Tribe\db.sqlite3</jdbc-url>
+      <working-dir>$ProjectFileDir$</working-dir>
+    </data-source>
   </component>
 </project>

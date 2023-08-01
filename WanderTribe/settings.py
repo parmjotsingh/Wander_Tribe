@@ -42,7 +42,10 @@ INSTALLED_APPS = [
     'main',
     'bootstrap5'
 ]
-
+JAZZMIN_SETTINGS = {
+    # Logo to use for your site, must be present in static files, used for brand on top left
+    "site_logo": "media/favicon_dark.png"
+}
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
