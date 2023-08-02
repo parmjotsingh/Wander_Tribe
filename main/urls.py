@@ -22,6 +22,7 @@ urlpatterns = [
     path('profile', views.profile, name='profile'),
     path('contact', views.contact, name='contact'),
     path('cancel/<int:id>', views.cancelBooking, name='cancel'),
+
     # path('guidepage/', admin.site.urls),
     # path('email', views.email, name='email'),
 ]+ static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

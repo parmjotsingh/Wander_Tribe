@@ -40,6 +40,11 @@ def index(request):
     print(f"Hi,{request.method}\n", Hike.objects.all().order_by('-id')[:5])
     return render(request, 'index.html', {"treks": Hike.objects.all().order_by('-id')[:5]})
 
+@login_required(login_url='main:login')
+def guide_logout(request):
+    logout(request)
+    print("jkdbsjdbgfjis")
+    return redirect('/')
 
 @login_required(login_url='main:login')
 def singleTrek(request, id):
